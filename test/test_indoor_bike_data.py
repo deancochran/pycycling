@@ -4,7 +4,7 @@ from pycycling.ftms_parsers.indoor_bike_data import IndoorBikeData, parse_indoor
 
 
 class TestIndoorBikeData(unittest.TestCase):
-    # Synthetic FTMS Indoor Bike Data (0x2AD2), with every measurement present.
+    # Synthetic Indoor Bike Data (0x2AD2), using this parser's signed16 resistance.
     # Energy is one flag covering three consecutive fields (2 + 2 + 1 bytes).
     all_fields = bytes.fromhex(
         "fe 1f 10 0e ac 0d b5 00 b0 00 56 34 12 f6 ff fa 00 ec ff "
@@ -37,7 +37,7 @@ class TestIndoorBikeData(unittest.TestCase):
         )
 
     def test_all_flag_layout_lengths(self):
-        # Independent packet construction for all 8,192 defined flag layouts.
+        # All 8,192 flag layouts with the parser's existing signed16 resistance.
         widths = (2, 2, 2, 2, 3, 2, 2, 2, 5, 1, 1, 2, 2)
         for flags in range(0x2000):
             payload = flags.to_bytes(2, "little")
@@ -49,6 +49,13 @@ class TestIndoorBikeData(unittest.TestCase):
                 self.assertIsInstance(parse_indoor_bike_data(payload), IndoorBikeData)
                 with self.assertRaises(ValueError):
                     parse_indoor_bike_data(payload[:-1])
+
+    def test_resistance_retains_existing_signed16_layout(self):
+        self.assertEqual(parse_indoor_bike_data(bytes.fromhex("21 00 fa ff")).resistance_level, -6)
+        # The old decoder accidentally accepted the short slice as signed -6;
+        # it did not correctly support a uint8 resistance measurement of 250.
+        with self.assertRaises(ValueError):
+            parse_indoor_bike_data(bytes.fromhex("21 00 fa"))
 
     def test_trailing_bytes_and_reserved_flags_remain_tolerated(self):
         expected = parse_indoor_bike_data(self.all_fields)

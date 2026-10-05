@@ -28,6 +28,8 @@ def parse_indoor_bike_data(message) -> IndoorBikeData:
     # int.from_bytes accepts short (even empty) slices. Validate the complete
     # advertised layout before parsing so missing bytes cannot become readings.
     # Bit 0 is More Data: unlike the other bits, zero means the field is present.
+    # Bit 5 retains this parser's existing signed16 resistance layout; this does
+    # not add uint8 resistance support or infer a format from the packet length.
     present = int.from_bytes(message[:2], "little") ^ 1
     field_sizes = (2, 2, 2, 2, 3, 2, 2, 2, 5, 1, 1, 2, 2)
     required_length = 2 + sum(
